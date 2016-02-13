@@ -86,19 +86,67 @@ def prepare_data_rf(filepath,num_sample=100):
     # subject
     input_data_sampled = input_data.loc[np.repeat(input_data.index.values,\
             num_sample*input_data['No. of Subjects (N)'].values)]
+    
+    # For input values, we simply replicated the values. However,
+    # we need to sample the output values from a truncated Gaussian distribution
+    output_data_sampled = output_sampler(output_data.values,\
+            input_data['No. of Subjects (N)'].values,num_sample)
+    pdb.set_trace()
+    
     # Removing the number of test subjects values and reindexing
     input_data_sampled = input_data_sampled.drop("No. of Subjects (N)",axis=1).reset_index(drop=True)
 
-    # For input values, we simply replicated the values. However,
-    # we need to sample the output values from a truncated Gaussian distribution
-    output_data_sampled = output_sampler(output_data,num_sample)
-    pdb.set_trace()
+    return (input_data_sampled,output_data_sampled)
 
+def output_sampler(output_data,num_subjects,num_sample):
+    output_data_sampled = np.zeros((np.sum(num_subjects)*num_sample,\
+            output_data.shape[1]/2))
+    mean_nan = np.zeros((output_data_sampled.shape[1],))
+    sd_nan = np.zeros((output_data_sampled.shape[1],))
+    # Going over all the rows in output_data and sampling
+    for i in range(output_data.shape[0]):
+        # Sampling for each output value
+        for j in range(output_data_sampled.shape[1]):
+            # Core sampling part: for each test subjects- sample
+            # num_subjects*num_samples from a constrained normal distribution
 
-def output_sampler(output_data,num_sample):
-    output_data_sampled = np.zeros(output_data.shape)
-
+            # Lets check for data validity in input
+            # if mean value is not present --> That experiments is invalid
+            if np.isnan(output_data[i,2*j]):
+                mean_nan[j] = mean_nan[j]+1
+                # Just saying that all the current samples are NaN (not a number)
+                print "For index ",i," and output index ",j
+                print "Mean value is not a number, generating NaN samples only"
+                samples = np.full((num_subjects[i]*num_sample),np.nan)
+            # If SD value is not given, lets assume it to be a very small value
+            elif np.isnan(output_data[i,2*j+1]):
+                sd_nan[j] = sd_nan[j]+1
+                print "For index ",i," and output index ",j
+                print "Standard deviation value not given, sampling with almost 0 SD"
+                samples = sample_truncated(output_data[i,2*j],1e-5,\
+                    num_subjects[i]*num_sample)
+            else:
+                # This mean both mean and SD are provided
+                samples = sample_truncated(output_data[i,2*j],output_data[i,2*j+1],\
+                    num_subjects[i]*num_sample)
+            # Filling in all the values
+            output_data_sampled[np.sum(num_subjects[:i])*num_sample:np.sum(num_subjects[:i+1])*num_sample,j]\
+                    =samples
+    # Printing summary stats
+    print "Output data summary: Total Not a Number (NaN) samples"
+    print "Total number of studies: ",output_data.shape[0]
+    print "index is 0=PMN,1=MAC,2=LDH,3=TP:"
+    print "mean NaN: ", mean_nan
+    print "SD NaN: ", sd_nan
     return output_data_sampled
+
+# Sample num_samples for a truncated Gaussian distribution with lower bound
+# being 0 and upper bound being +infinity
+def sample_truncated(mu,sigma,num_sample):
+    lower, upper = 0, np.inf
+    X = stats.truncnorm(
+        (lower - mu) / sigma, (upper - mu) / sigma, loc=mu, scale=sigma)
+    return X.rvs(num_sample)
 
 # To prove the point that sampling from a truncated distribution does not induce
 # bias in sampling
