@@ -74,14 +74,41 @@ def import_data(filepath):
 # forest
 #
 # @param filepath - Full path of excel file containing data
+# @param output_feature - What feature output value are we trying to predict,
+# possible values are PMN,MAC,LDH and TP
+# @param author_exclude - The authors that should be excluded from the learning
+# part and just be tested against
 # @param num_sample - Number of samples to be drawn from output value Gaussian
 # distribution for one sample animal. Default is 100 - same as the paper
 #
 # @return Input data and output data for random forest learning 
-def prepare_data_rf(filepath,num_sample=100):
+def prepare_data_rf(filepath,output_feature='PMN',author_exclude=None,num_sample=100):
+
+    # Outputs from this function
+    train_inp = [];train_out = [];test_inp = [];test_out = []
     # Read the excel file and get all the input data
     (input_data,output_data) = import_data(filepath)
 
+    # In case we are trying to replicate Table IV of the paper, where a part of
+    # the data is used for testing and the excluded part is for testing
+    if author_exclude is not None:
+        exclude_ind = (input_data['Author(s)'].values==author_exclude[0])*\
+        (input_data['Year'].values == author_exclude[1])
+    else:
+        exclude_ind = np.full((input_data.shape[0],),False,dtype=np.bool_)
+
+    # Training Data
+    print "Training Data"
+    (train_inp,train_out) = sample_input_output(input_data.loc[~exclude_ind,:],\
+            output_data.loc[~exclude_ind,:],output_feature,num_sample)
+    print "Validation Data"
+    # Testing Data
+    (test_inp,test_out) = sample_input_output(input_data.loc[exclude_ind,:],\
+            output_data.loc[exclude_ind,:],output_feature,num_sample)
+
+    return (train_inp,train_out,test_inp,test_out)
+
+def sample_input_output(input_data,output_data,output_feature,num_sample):
     # Sample input data based on the number of samples required for each test
     # subject
     input_data_sampled = input_data.loc[np.repeat(input_data.index.values,\
@@ -89,12 +116,30 @@ def prepare_data_rf(filepath,num_sample=100):
     
     # For input values, we simply replicated the values. However,
     # we need to sample the output values from a truncated Gaussian distribution
-    output_data_sampled = output_sampler(output_data.values,\
+    # Selecting the relevant column of output
+    if output_feature=='PMN':
+        feat_index = 0
+    elif output_feature=='MAC':
+        feat_index = 1
+    elif output_feature=='LDH':
+        feat_index = 2
+    else:
+        # Implies it is TP
+        feat_index = 3
+
+    output_data_sampled =output_sampler(output_data.iloc[:,2*feat_index:2*feat_index+2].values,\
             input_data['No. of Subjects (N)'].values,num_sample)
-    pdb.set_trace()
     
     # Removing the number of test subjects values and reindexing
     input_data_sampled = input_data_sampled.drop("No. of Subjects (N)",axis=1).reset_index(drop=True)
+
+    # Finally removing the names and year and just returning numpy arrays for
+    # training RF models
+    # We also drop all the input values where the output value is NaN or in
+    # other words that data is useless for the current learning problem
+    input_data_sampled =input_data_sampled.iloc[~np.isnan(output_data_sampled[:,0]),2:].values
+    # Because we are only learning a tree for a single output value
+    output_data_sampled = output_data_sampled[~np.isnan(output_data_sampled[:,0]),0]
 
     return (input_data_sampled,output_data_sampled)
 
@@ -115,14 +160,14 @@ def output_sampler(output_data,num_subjects,num_sample):
             if np.isnan(output_data[i,2*j]):
                 mean_nan[j] = mean_nan[j]+1
                 # Just saying that all the current samples are NaN (not a number)
-                print "For index ",i," and output index ",j
-                print "Mean value is not a number, generating NaN samples only"
+                #print "For index ",i," and output index ",j
+                #print "Mean value is not a number, generating NaN samples only"
                 samples = np.full((num_subjects[i]*num_sample),np.nan)
             # If SD value is not given, lets assume it to be a very small value
             elif np.isnan(output_data[i,2*j+1]):
                 sd_nan[j] = sd_nan[j]+1
-                print "For index ",i," and output index ",j
-                print "Standard deviation value not given, sampling with almost 0 SD"
+                #print "For index ",i," and output index ",j
+                #print "Standard deviation value not given, sampling with almost 0 SD"
                 samples = sample_truncated(output_data[i,2*j],1e-5,\
                     num_subjects[i]*num_sample)
             else:
