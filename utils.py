@@ -113,7 +113,7 @@ def import_data(filepath,toxicity):
 #
 # @return Input data and output data for random forest learning 
 def prepare_data_rf(filepath,output_feature='PMN',author_exclude=None,\
-        num_sample=100,toxicity="CNT"):
+        num_sample=100,toxicity="CNT",other_excludes = None):
 
     # Outputs from this function
     train_inp = [];train_out = [];test_inp = [];test_out = []
@@ -123,11 +123,18 @@ def prepare_data_rf(filepath,output_feature='PMN',author_exclude=None,\
     # In case we are trying to replicate Table IV of the paper, where a part of
     # the data is used for testing and the excluded part is for testing
     if author_exclude is not None:
-        exclude_ind = (input_data['Author(s)'].values==author_exclude[0])*\
-        (input_data['Year'].values == author_exclude[1])
+        exclude_ind = np.full((input_data.shape[0],),False,dtype=np.bool_)
+        for author_details in author_exclude:
+            curr_ind = (input_data['Author(s)'].values==author_details[0])*(input_data['Year'].values== author_details[1])
+            exclude_ind = np.logical_or(exclude_ind,curr_ind)
     else:
         exclude_ind = np.full((input_data.shape[0],),False,dtype=np.bool_)
-    
+    # Other exlcudes permitted via list of dict objects
+    if other_excludes is not None:
+        for exclude in other_excludes:
+            for key in exclude.keys():
+                curr_ind = input_data[key].values==exclude[key]
+                exclude_ind = np.logical_or(exclude_ind,curr_ind)
     # Training Data
     print "Training Data"
     (train_inp,train_out) = sample_input_output(input_data.loc[~exclude_ind,:],\

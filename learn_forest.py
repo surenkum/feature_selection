@@ -20,14 +20,15 @@ def learn_forest(filepath,toxicity="CNT"):
     for feature in features:
         # For cross-validation, we can exclude certain studies from training. For
         # example to exclude Pauluhun,2010 use
-        #author_exclude = ['Pauluhn, J.',2010]
-        #author_exclude = ['Shvedova, A. et al.',2005]
         # To use the entire training data, pass author_exclude as None
-        author_exclude = None#['Silva R',2016]#None
+        author_exclude = None#[['Seiffert J',2015],['Silva R',2015]]#None
+        particle_exclude = [{'Particle Type (1=basic, 2 = citratecapped, 3 = PVPcapped)':1},
+                {'Particle Type (1=basic, 2 = citratecapped, 3 = PVPcapped)':2}]
         
         # Getting training input and output
         (train_inp,train_out,test_inp,test_out,feature_names) = ut.prepare_data_rf(filepath,\
-                feature,author_exclude,toxicity = toxicity)
+                feature,author_exclude,toxicity = toxicity,
+                other_excludes = particle_exclude)
 
         # Training
         # Imputing all the NaN values
