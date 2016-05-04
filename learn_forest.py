@@ -8,7 +8,12 @@ from sklearn.metrics import mean_squared_error
 import numpy as np
 import matplotlib.pyplot as plt
 
-def learn_forest(filepath):
+'''
+Main function that learns a random forest based on toxicity data
+Inputs: filepath: path to .xls file 
+        toxicity: Type of toxicity we are analyzing, defaults to CNT
+'''
+def learn_forest(filepath,toxicity="CNT"):
     # Learning a forest for predicting PMN
     # Please choose PMN, MAC, LDH, TP
     feature = 'PMN'
@@ -21,7 +26,7 @@ def learn_forest(filepath):
     
     # Getting training input and output
     (train_inp,train_out,test_inp,test_out,feature_names) = ut.prepare_data_rf(filepath,\
-            feature,author_exclude)
+            feature,author_exclude,toxicity = toxicity)
 
     # Training
     # Imputing all the NaN values
@@ -44,6 +49,7 @@ def learn_forest(filepath):
         print "MSE error for ",feature," with all points in the model is : ",score
     
     # Plotting feature importance
+    pdb.set_trace()
     feature_importance = estimator._final_estimator.feature_importances_
     # make importances relative to max importance
     feature_importance = 100.0 * (feature_importance / feature_importance.max())
@@ -56,5 +62,7 @@ def learn_forest(filepath):
     plt.show()
 
 if __name__=="__main__":
-    filepath = './data/Carbon_Nanotube_Pulmonary_Toxicity_Data_Set_20120313.xls'
-    data = learn_forest(filepath)
+    # filepath = './data/Carbon_Nanotube_Pulmonary_Toxicity_Data_Set_20120313.xls'
+    filepath = './data/Toxicity Measurements -- Meta Analysis.xlsx'
+    toxicity = "AgNP" # Use "CNT" for analyzing Carbon Nano toxicity
+    data = learn_forest(filepath,toxicity)
