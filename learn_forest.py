@@ -7,6 +7,8 @@ from sklearn.cross_validation import cross_val_score
 from sklearn.metrics import mean_squared_error
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib
+from sklearn.tree import export_graphviz
 
 '''
 Main function that learns a random forest based on toxicity data
@@ -49,6 +51,19 @@ def learn_forest(filepath,toxicity="CNT"):
             # Estimating MSE score
             score = mean_squared_error(train_out,predict_test)
             print "MSE error for ",feature," with all points in the model is : ",score
+        # Exporting the learned graph
+        feature_string = np.array(['Particle Type','Mean Diameter, nm','Exposure Mode',
+                'Rat Species','Mean Animal Mass, g','Sex','Surface Area (m^2/g)',
+                'Mass Conc. (ug/m^3)','Exp. Hours','Total Dose (ug/kg)',
+                'Post Exp. (days)'])
+        print "original feature names ",feature_names
+        print "replaced feature names ",feature_string
+        # Increase font size for plots
+        matplotlib.rcParams.update({'font.size': 12})
+
+        # Print all the estimators
+        for ind,em in enumerate(estimator._final_estimator.estimators_):
+            export_graphviz(em,out_file="tree"+str(ind)+".dot",feature_names = feature_string)
         
         # Plotting feature importance
         feature_importance = estimator._final_estimator.feature_importances_
@@ -57,7 +72,7 @@ def learn_forest(filepath,toxicity="CNT"):
         sorted_idx = np.argsort(feature_importance)
         pos = np.arange(sorted_idx.shape[0]) + .5
         plt.barh(pos, feature_importance[sorted_idx], align='center')
-        plt.yticks(pos, feature_names[sorted_idx])
+        plt.yticks(pos, feature_string[sorted_idx])
         plt.xlabel('Relative Importance')
         plt.title('Variable Importance for feature '+feature)
         plt.show()
