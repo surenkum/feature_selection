@@ -144,7 +144,8 @@ def prepare_data_rf(filepath,output_feature='PMN',author_exclude=None,\
     (test_inp,test_out) = sample_input_output(input_data.loc[exclude_ind,:],\
             output_data.loc[exclude_ind,:],output_feature,num_sample)
 
-    return (train_inp,train_out,test_inp,test_out,input_data.columns[3:].values)
+    return (train_inp,train_out,test_inp,test_out,\
+            input_data.columns[3:].values)
 
 def sample_input_output(input_data,output_data,output_feature,num_sample):
     # Sample input data based on the number of samples required for each test

@@ -24,13 +24,15 @@ def learn_forest(filepath,toxicity="CNT"):
         # example to exclude Pauluhun,2010 use
         # To use the entire training data, pass author_exclude as None
         author_exclude = None#[['Seiffert J',2015],['Silva R',2015]]#None
-        particle_exclude = [{'Particle Type (1=basic, 2 = citratecapped, 3 = PVPcapped)':1},
-                {'Particle Type (1=basic, 2 = citratecapped, 3 = PVPcapped)':2}]
+        particle_exclude = [{'Particle Type (1=basic, 2 = citratecapped, 3 = PVPcapped)':1}]
         
         # Getting training input and output
         (train_inp,train_out,test_inp,test_out,feature_names) = ut.prepare_data_rf(filepath,\
                 feature,author_exclude,toxicity = toxicity,
                 other_excludes = particle_exclude)
+
+        # Get median values for plotting dose response curves
+        median_vals = get_median(train_inp)
 
         # Training
         # Imputing all the NaN values
@@ -76,6 +78,13 @@ def learn_forest(filepath,toxicity="CNT"):
         plt.xlabel('Relative Importance')
         plt.title('Variable Importance for feature '+feature)
         plt.show()
+
+def get_median(train_inp):
+    # Getting the median values of the entire data
+    median_vals = np.zeros((train_inp.shape[1],))
+    for i in range(train_inp.shape[1]):
+        median_vals[i] = np.median(train_inp[~np.isnan(train_inp[:,i]),i])
+        pdb.set_trace()
 
 if __name__=="__main__":
     # filepath = './data/Carbon_Nanotube_Pulmonary_Toxicity_Data_Set_20120313.xls'
