@@ -20,6 +20,7 @@ def learn_forest(filepath,toxicity="CNT"):
     # Please choose PMN, MAC, LDH, TP, TCC (Total Cell Count -- only for AgNP)
     features = ['PMN','MAC','LDH','TP','TCC']
     for feature in features:
+        print "Processing the data to estimate ",feature
         # For cross-validation, we can exclude certain studies from training. For
         # example to exclude Pauluhun,2010 use
         # To use the entire training data, pass author_exclude as None
@@ -32,13 +33,19 @@ def learn_forest(filepath,toxicity="CNT"):
                 other_excludes = particle_exclude)
 
         # Get median values for plotting dose response curves
-        median_vals = get_median(train_inp)
+        (median_vals, min_vals, max_vals) = get_median_min_max(train_inp)
 
         # Training
         # Imputing all the NaN values
         estimator = Pipeline([("imputer",Imputer(strategy="mean")),
             ("forest",ExtraTreesRegressor(random_state=0))])
         estimator.fit(train_inp,train_out)
+
+        # Plotting dose-response curves
+        feature_indexes = [1,7]
+        plot_dose_response(estimator,median_vals,min_vals,max_vals,\
+                feature_indexes,feature_names,feature)
+
 
         # Testing the model against validation if it exists or else calculating
         # error on the training input itself
@@ -79,12 +86,61 @@ def learn_forest(filepath,toxicity="CNT"):
         plt.title('Variable Importance for feature '+feature)
         plt.show()
 
-def get_median(train_inp):
+# Get the median, minimum and maximum values of all the input dimensions
+def get_median_min_max(train_inp):
     # Getting the median values of the entire data
     median_vals = np.zeros((train_inp.shape[1],))
+    min_vals = np.zeros((train_inp.shape[1],))
+    max_vals = np.zeros((train_inp.shape[1],))
     for i in range(train_inp.shape[1]):
         median_vals[i] = np.median(train_inp[~np.isnan(train_inp[:,i]),i])
-        pdb.set_trace()
+        min_vals[i] = np.nanmin(train_inp[:,i])
+        max_vals[i] = np.nanmax(train_inp[:,i])
+    return (median_vals,min_vals,max_vals)
+
+# Plot dose response curve
+'''
+Requires the estimator, median values, two different feature indexes 
+to plot contours of dose response curve
+'''
+
+def plot_dose_response(estimator,median_vals,min_vals,max_vals,\
+        feature_indexes,feature_names,target_feature):
+    assert (len(feature_indexes)==2), "Need 2 feature indexes to plot dose response curve"
+    # Plotting all the output values from the curve
+    # Divide the minimum and maximum values in 20 points range
+    origin = 'lower'
+    cmap = plt.cm.get_cmap("rainbow")
+    cmap.set_under("magenta")
+    cmap.set_over("yellow")
+    num_points  = 20
+    x = np.arange(min_vals[feature_indexes[0]],max_vals[feature_indexes[0]],\
+            (max_vals[feature_indexes[0]]-min_vals[feature_indexes[0]])/(num_points*1.0))
+    y = np.arange(min_vals[feature_indexes[1]],max_vals[feature_indexes[1]],\
+            (max_vals[feature_indexes[1]]-min_vals[feature_indexes[1]])/(num_points*1.0))
+    X,Y = np.meshgrid(x,y)
+    Z = np.zeros((X.shape))
+    for i in range(X.shape[0]):
+        for j in range(X.shape[1]):
+            # Get current input values
+            inp_feature = median_vals
+            inp_feature[feature_indexes[0]] = X[i,j] # fill-in first feature
+            inp_feature[feature_indexes[1]] = Y[i,j] # fill-in second feature
+            Z[i,j] = estimator.predict(inp_feature.reshape(1,-1))[0]
+    # Plotting the contour
+    plt.figure()
+    CS = plt.contourf(X, Y, Z, 10,
+                  #[-1, -0.1, 0, 0.1],
+                  #alpha=0.5,
+                  cmap=cmap,
+                  origin=origin)
+    plt.xlabel(feature_names[feature_indexes[0]])
+    plt.ylabel(feature_names[feature_indexes[1]])
+    cbar = plt.colorbar(CS)
+    cbar.ax.set_ylabel(target_feature)
+    plt.show()
+
+
 
 if __name__=="__main__":
     # filepath = './data/Carbon_Nanotube_Pulmonary_Toxicity_Data_Set_20120313.xls'
