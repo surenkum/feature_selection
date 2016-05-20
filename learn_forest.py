@@ -25,7 +25,7 @@ def learn_forest(filepath,toxicity="CNT"):
         # example to exclude Pauluhun,2010 use
         # To use the entire training data, pass author_exclude as None
         author_exclude = None#[['Seiffert J',2015],['Silva R',2015]]#None
-        particle_exclude = [{'Particle Type (1=basic, 2 = citratecapped, 3 = PVPcapped)':1}]
+        particle_exclude = None#[{'Particle Type (1=basic, 2 = citratecapped, 3 = PVPcapped)':1}]
         
         # Getting training input and output
         (train_inp,train_out,test_inp,test_out,feature_names) = ut.prepare_data_rf(filepath,\
@@ -41,11 +41,18 @@ def learn_forest(filepath,toxicity="CNT"):
             ("forest",ExtraTreesRegressor(random_state=0))])
         estimator.fit(train_inp,train_out)
 
-        # Plotting dose-response curves
+        # Plotting risk-contour curves
+        print feature_names
         feature_indexes = [1,7]
-        plot_dose_response(estimator,median_vals,min_vals,max_vals,\
+        plot_risk_contour(estimator,median_vals,min_vals,max_vals,\
                 feature_indexes,feature_names,feature)
 
+        # Plotting dose-response curves
+        # Testing for nano-particle size
+        feature_index = 1
+        feature_vals = [20,100] # Passing 20 and 100 nanometers
+        plot_dose_response(estimator,median_vals,min_vals, max_vals, \
+                feature_index,feature_vals,feature_names,feature)
 
         # Testing the model against validation if it exists or else calculating
         # error on the training input itself
@@ -98,15 +105,13 @@ def get_median_min_max(train_inp):
         max_vals[i] = np.nanmax(train_inp[:,i])
     return (median_vals,min_vals,max_vals)
 
-# Plot dose response curve
 '''
 Requires the estimator, median values, two different feature indexes 
-to plot contours of dose response curve
+to plot risk contours curves
 '''
-
-def plot_dose_response(estimator,median_vals,min_vals,max_vals,\
+def plot_risk_contour(estimator,median_vals,min_vals,max_vals,\
         feature_indexes,feature_names,target_feature):
-    assert (len(feature_indexes)==2), "Need 2 feature indexes to plot dose response curve"
+    assert (len(feature_indexes)==2), "Need 2 feature indexes to plot risk contour"
     # Plotting all the output values from the curve
     # Divide the minimum and maximum values in 20 points range
     origin = 'lower'
@@ -140,6 +145,37 @@ def plot_dose_response(estimator,median_vals,min_vals,max_vals,\
     cbar.ax.set_ylabel(target_feature)
     plt.show()
 
+'''
+Requires the estimator, median values, two different feature indexes 
+to plot dose response curves
+'''
+def plot_dose_response(estimator,median_vals,min_vals, max_vals, \
+        feature_index,feature_vals,feature_names,target_feature):
+    # Plotting all the output values from the curve
+    # Divide the minimum and maximum values in 20 points range
+    # Total dose is 9th index 
+    num_points  = 20
+    if (abs(min_vals[9]-max_vals[9])<2):
+        x = np.arange(100,1000,900.0/20)
+    else:
+        x = np.arange(min_vals[9],max_vals[9],\
+            (max_vals[9]-min_vals[9])/(num_points*1.0))
+    plot_response = np.zeros((x.shape[0],len(feature_vals)))
+    for i in range(x.shape[0]):
+        for j in range(len(feature_vals)):
+            # Get current input values
+            inp_feature = median_vals
+            inp_feature[9] = x[i] # 9th index is total dose 
+            inp_feature[feature_index] = feature_vals[j] # fill-in second feature
+            plot_response[i,j] = estimator.predict(inp_feature.reshape(1,-1))[0]
+    # Plotting the contour
+    plt.figure()
+    colors = ['r','g','b','y','k']
+    for j in range(len(feature_vals)):
+        plt.plot(x,plot_response[:,j],linewidth=3.0,color=colors[j])
+    plt.xlabel('Total Dose')
+    plt.ylabel(target_feature)
+    plt.show()
 
 
 if __name__=="__main__":
