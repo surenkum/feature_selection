@@ -26,7 +26,7 @@ def learn_forest(filepath,toxicity="CNT"):
         # To use the entire training data, pass author_exclude as None
         author_exclude = None#[['Seiffert J',2015],['Silva R',2015]]#None
         particle_exclude = None#[{'Particle Type (1=basic, 2 = citratecapped, 3 = PVPcapped)':1}]
-        
+
         # Getting training input and output
         (train_inp,train_out,test_inp,test_out,feature_names) = ut.prepare_data_rf(filepath,\
                 feature,author_exclude,toxicity = toxicity,
@@ -49,8 +49,8 @@ def learn_forest(filepath,toxicity="CNT"):
 
         # Plotting dose-response curves
         # Testing for nano-particle size
-        feature_index = 1
-        feature_vals = [20,100] # Passing 20 and 100 nanometers
+        feature_index = 0
+        feature_vals = [1,3] 
         plot_dose_response(estimator,median_vals,min_vals, max_vals, \
                 feature_index,feature_vals,feature_names,feature)
 
